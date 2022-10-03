@@ -14,7 +14,7 @@ margin_right = 1513.0
 margin_bottom = 1043.0
 color = Color( 0.631373, 0.654902, 0.639216, 1 )
 
-[node name="AudioStreamRecord" type="AudioStreamPlayer" parent="."]
+[node name="AudioRecord" type="AudioStreamPlayer" parent="."]
 stream = SubResource( 1 )
 autoplay = true
 bus = "Record"

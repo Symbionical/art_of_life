@@ -1,7 +1,5 @@
 extends KinematicBody2D
 
-var minimum_speed = 10
-var rng = RandomNumberGenerator.new()
 
 # vars
 var dir
@@ -26,37 +24,31 @@ var colors = [
 ]
 
 # GENES
-var speed = 5
-var size = 1
-var split_size = 2
 var type = 1 
-var mother = null
+var attraction_mod = 0
+var speed = 3
+var radius = 0.1
+var size = PI*pow(radius,2)
+var split_size = size*2
 
 onready var colisionRadius = $collisions
 onready var attractionRadius = $Area2D 
 onready var color = $Sprite.modulate
 onready var screen_size = get_viewport_rect().size
-
-func randomise_genes():
-	rng.seed = hash("Godot")
-	rng.state = 100 # Restore to some previously saved state.
-	speed = rand_range(minimum_speed, 5)
-	size = rand_range(0.5,2.0)
-	split_size = size*2
-	rng.randomize()
-	type = rng.randi_range(0,9) #because zero-indexing
-	self.modulate = colors[type]
-	self.scale = Vector2(size,size)
-	attractionRadius.scale = Vector2(size,size)
+onready var minimum_speed = GlobalWorld.min_speed
 
 func try_reproduction():
 	if size > split_size:
-		self.update_size((split_size/2))
-		GlobalWorld.create_daughter(self)
+		var remainder = size - split_size
+		self.update_size((split_size/2)+remainder)
+		var daughter_pos = Vector2(self.position.x + (5*self.radius)*((-1)*sign(self.velocity.x)), self.position.y + (5*self.radius)*((-1)*sign(self.velocity.y)))
+		var daughter_rad = sqrt((split_size/2)/PI)
+		GlobalWorld.generate_specific_cell(self.type,self.speed,daughter_rad,self.attraction_mod,-self.velocity,daughter_pos)
+
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
-	rng.randomize()
+	pass
 
 func lerp(a, b, t):
 	return (1 - t) * a + t * b
@@ -66,7 +58,7 @@ func _process(delta):
 	try_reproduction()
 	wrap()
 
-func _physics_process(delta):
+func _physics_process(_delta):
 	velocity = move_and_slide(velocity,Vector2(0, -1))
 
 func wrap():
@@ -78,13 +70,12 @@ func handle_predation():
 	if colliders != []:
 		for c in colliders:
 			if c.size > self.size and c.type != self.type:
-				c.update_size(c.size+self.size)
+				c.update_size(c.size + self.size)
 				self.queue_free()
 
-func handle_forces(delta):
+func handle_forces(_delta):
 	neighbours = attractionRadius.get_overlapping_bodies()
 	if neighbours != []:
-		var my_neighbour_dict = {}
 		var current_winner = 0
 		var winning_neighbour = null
 		for i in len(neighbours):
@@ -100,16 +91,21 @@ func handle_forces(delta):
 			else:
 				#come closer
 				direction_vector = winning_neighbour.position - self.position
+			direction_vector = direction_vector.normalized()
 			current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
 			current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
 			velocity = current_direction*speed
-			velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
-			velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
+			if abs(velocity.x) > abs(velocity.y):
+				velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
+			else:
+				velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
+			
 		handle_predation()
 
 func update_size(new_size):
 	var newTween = create_tween()
-	newTween.tween_property(self,"scale",Vector2(new_size,new_size),0.2)
+	radius = sqrt(new_size/PI)
+	newTween.tween_property(self,"scale",Vector2(radius,radius),0.2)
 	size = new_size
-	attractionRadius.scale = Vector2(new_size,new_size)
+	attractionRadius.scale = Vector2(radius + (attraction_mod*radius),radius + (attraction_mod*radius))
 
