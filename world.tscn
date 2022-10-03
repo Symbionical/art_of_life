@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=3 format=2]
 
 [ext_resource path="res://world.gd" type="Script" id=1]
+
+[sub_resource type="AudioStreamMicrophone" id=1]
 
 [node name="world" type="Node2D"]
 script = ExtResource( 1 )
@@ -11,3 +13,26 @@ show_behind_parent = true
 margin_right = 1513.0
 margin_bottom = 1043.0
 color = Color( 0.631373, 0.654902, 0.639216, 1 )
+
+[node name="AudioStreamRecord" type="AudioStreamPlayer" parent="."]
+stream = SubResource( 1 )
+autoplay = true
+bus = "Record"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+margin_right = 97.0
+margin_bottom = 80.0
+
+[node name="Record" type="Button" parent="VBoxContainer"]
+margin_right = 97.0
+margin_bottom = 20.0
+text = "Record"
+
+[node name="Process" type="Button" parent="VBoxContainer"]
+margin_top = 24.0
+margin_right = 97.0
+margin_bottom = 44.0
+text = "Process"
+
+[connection signal="pressed" from="VBoxContainer/Record" to="." method="_on_Record_pressed"]
+[connection signal="pressed" from="VBoxContainer/Process" to="." method="_on_Process_pressed"]

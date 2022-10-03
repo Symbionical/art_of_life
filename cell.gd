@@ -51,7 +51,6 @@ func randomise_genes():
 
 func try_reproduction():
 	if size > split_size:
-		print("split",self)
 		self.update_size((split_size/2))
 		GlobalWorld.create_daughter(self)
 
