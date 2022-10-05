@@ -8,9 +8,7 @@ var direction_vector = Vector2(0,0)
 var current_direction = Vector2(0,0)
 var neighbours = []
 var colliders = []
-var velocity = Vector2(0,0)
-
-
+var velocity
 
 var colors2 = [
 	Color("#000000"),
@@ -196,10 +194,6 @@ var colors2 = [
 	Color("#c74453"),
 	Color("#ea7e82")
 ]
-
-
-
-
 var colors = [
 	Color("#e8f1a6"),
 	Color("#cad670"),
@@ -235,7 +229,6 @@ func try_reproduction():
 		var daughter_rad = sqrt((split_size/2)/PI)
 		GlobalWorld.generate_specific_cell(self.type,self.speed,daughter_rad,self.attraction_mod,-self.velocity,daughter_pos)
 
-
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	pass
@@ -249,6 +242,14 @@ func _process(delta):
 #	wrap()
 
 func _physics_process(delta):
+	direction_vector = direction_vector.normalized()
+	current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
+	current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
+	velocity = current_direction*speed
+	if abs(velocity.x) > abs(velocity.y):
+		velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
+	else:
+		velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
 	velocity = move_and_slide(velocity,Vector2(0, 0))
 
 func wrap():
@@ -261,16 +262,11 @@ func handle_predation():
 		for c in colliders:
 			if "size" in c:
 				if c.size > self.size and c.type != self.type:
-					c.update_size(c.size+self.size)
+					c.update_size(c.size + self.size)
 					self.queue_free()
 			elif c.name == "boundary":
 				direction_vector = Vector2(960,540) - self.position
-				current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
-				current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
-				velocity = current_direction*speed
-				velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
-				velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
-				
+
 
 func handle_forces(_delta):
 	neighbours = attractionRadius.get_overlapping_bodies()
@@ -291,11 +287,6 @@ func handle_forces(_delta):
 				else:
 					#come closer
 					direction_vector = winning_neighbour.position - self.position
-				current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
-				current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
-				velocity = current_direction*speed
-				velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
-				velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
 		handle_predation()
 
 func update_size(new_size):
@@ -304,4 +295,3 @@ func update_size(new_size):
 	newTween.tween_property(self,"scale",Vector2(radius,radius),0.2)
 	size = new_size
 	attractionRadius.scale = Vector2(radius + (attraction_mod*radius),radius + (attraction_mod*radius))
-

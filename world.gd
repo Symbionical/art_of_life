@@ -4,7 +4,8 @@ var rng = RandomNumberGenerator.new()
 var cell = preload("res://cell.tscn")
 var audio = preload("res://audio.tscn")
 
-var n_cell_types = 10 #note 10 here is the number of possible types/colours. change val if add more options.
+var n_cell_types = 182
+var n_attributes = n_cell_types + 4 # n colours + type + speed + radius + attr_rad_mod
 var max_speed = 20
 var min_speed = 10
 var max_rad = 1.5
@@ -13,7 +14,6 @@ var max_attr_mod = 0.1 #fraction of radius
 var min_attr_mod = -0.1 #fraction of radius
 
 var matrix = []
-var width = 10
 var audio_stream_sample
 var spectrum_short_buffer
 var spectrum_long_buffer
@@ -35,29 +35,9 @@ var leng = 0
 
 ####
 
-onready var screen_size = get_viewport_rect().size
 onready var audio_player = $AudioRecord
 onready var process_button = $VBoxContainer/Process
 onready var record_button = $VBoxContainer/Record
-
-func generate_cell():
-	
-	var newCell = cell.instance()
-	newCell.position = Vector2(rand_range(10.0, 1920.0), rand_range(10.0, 1080.0))
-	add_child(newCell)
-	newCell.randomise_genes()
-
-func create_daughter(mother):
-	var daughterCell = cell.instance()
-	daughterCell.speed = mother.speed
-	daughterCell.size = mother.size
-	daughterCell.split_size = daughterCell.size*2
-	daughterCell.type = mother.type
-	daughterCell.modulate = daughterCell.colors[daughterCell.type]
-	daughterCell.velocity = -mother.velocity
-	daughterCell.position = Vector2(mother.position.x + (5*mother.size)*((-1)*sign(mother.velocity.x)), mother.position.y + (5*mother.size)*((-1)*sign(mother.velocity.y)))
-	add_child(daughterCell)
-	daughterCell.update_size(daughterCell.size)
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -66,9 +46,9 @@ func _ready():
 	for i in range(prev_energy.size()):
 		prev_energy[i] = 0
 	
-	for x in range(width):
+	for x in range(n_cell_types):
 		matrix.append([])
-		for y in range(width):
+		for y in range(n_cell_types):
 			matrix[x].append(rand_range(-1.0, 1.0))
 	
 	var idx = AudioServer.get_bus_index("Record")
@@ -83,24 +63,25 @@ func refresh_audio():
 	audio_stream_sample = AudioServer.get_bus_effect(idx, 0)
 	spectrum_short_buffer = AudioServer.get_bus_effect_instance(idx, 1)
 	spectrum_long_buffer = AudioServer.get_bus_effect_instance(idx, 2)
-	print(audio_stream_sample,spectrum_short_buffer,spectrum_long_buffer)
 
 func generate_random_cell():
 	rng.seed = hash("Godot")
 	rng.state = 100 # Restore to some previously saved state.
 	rng.randomize()
-	var pos  = Vector2(rand_range(10.0, 1000.0), rand_range(10.0, 500.0))
-	generate_specific_cell(rng.randi_range(0,n_cell_types-1), rand_range(min_speed,max_speed), rand_range(min_rad,max_rad), rand_range(min_attr_mod,max_attr_mod), Vector2(0,0), pos)
+	var screen_size = get_viewport_rect().size
+	var init_pos  = Vector2(rand_range(10.0, screen_size.x - 10), rand_range(10.0, screen_size.y - 10))
+	var init_vel = Vector2(rand_range(-min_speed,min_speed),rand_range(-min_speed,min_speed))
+	generate_specific_cell(rng.randi_range(0,n_cell_types-1), rand_range(min_speed,max_speed), rand_range(min_rad,max_rad), rand_range(min_attr_mod,max_attr_mod), init_vel, init_pos)
 
 func generate_specific_cell(type,speed,radius,attraction_mod,velocity,pos):
 	var newCell = cell.instance()
 	newCell.type = type
-	newCell.modulate = newCell.colors[type]
+	newCell.modulate = newCell.colors2[type]
 	newCell.speed = speed
 	newCell.size = PI*pow(radius,2)
 	newCell.split_size = newCell.size*2
 	newCell.attraction_mod = attraction_mod
-	newCell.velocity = velocity
+	newCell.direction_vector = velocity
 	newCell.position = pos
 	add_child(newCell)
 	newCell.update_size(newCell.size)
@@ -115,12 +96,12 @@ func _physics_process(_delta):
 			process = false
 			counter = 0
 			voice_to_genes()
-		
+
 func _process(delta):
 	if Input.is_action_just_pressed("generate"):
 		generate_random_cell()
 	
-	
+
 func _on_Record_pressed():
 	if audio_stream_sample.is_recording_active():
 		recording = audio_stream_sample.get_recording()
@@ -146,7 +127,6 @@ func get_freq_range_energy(spectrum, min_hz, max_hz):
 	return energy
 
 func voice_to_genes():
-	var n_attributes = 14 #14 different attributes 
 	var prev_hz = 0
 	var type
 	var speed
@@ -160,18 +140,20 @@ func voice_to_genes():
 			var energy = get_freq_range_energy(spectrum_long_buffer,prev_hz,hz)
 			prev_hz = hz
 			var frac = fposmod(((energy/total_energy)*n_attributes),1)
-			#these are the relational attributes
 			if i == 0:
 				type = floor(frac*n_cell_types) 
-			elif i < 11:
-				matrix[type][i-1] = (frac*2)-1
-			elif i == 11:
+			elif i == 1:
 				speed = min_speed + ((max_speed-min_speed)*frac)
-			elif i == 12:
+			elif i == 2:
 				radius = min_rad + ((max_rad-min_rad)*frac)
-			elif i == 13:
+			elif i == 3:
 				attraction_mod = min_attr_mod + ((max_attr_mod-min_attr_mod)*frac)
-		generate_specific_cell(type,speed,radius,attraction_mod,Vector2(0,0),Vector2(rand_range(0, screen_size.x), rand_range(0,screen_size.y)))
+			elif i > 4: #these are the relational attributes
+				matrix[type][i-4] = (frac*2)-1
+		var screen_size = get_viewport_rect().size
+		var init_pos = Vector2(rand_range(10,screen_size.x-10),rand_range(10,screen_size.y-10))
+		var init_vel = Vector2(rand_range(-min_speed,min_speed),rand_range(-min_speed,min_speed))
+		generate_specific_cell(type,speed,radius,attraction_mod,init_vel,init_pos)
 	else: 
 		generate_random_cell() 
 		print("Warning: couldn't generate a mutant cell. Nothing was in the recording buffer. Maybe microphone issue? Generating random cell instead...")
