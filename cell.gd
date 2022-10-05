@@ -56,10 +56,10 @@ func lerp(a, b, t):
 func _process(delta):
 	handle_forces(delta)
 	try_reproduction()
-	wrap()
+#	wrap()
 
-func _physics_process(_delta):
-	velocity = move_and_slide(velocity,Vector2(0, -1))
+func _physics_process(delta):
+	velocity = move_and_slide(velocity,Vector2(0, 0))
 
 func wrap():
 	position.x = wrapf(position.x, 0, screen_size.x)
@@ -69,9 +69,18 @@ func handle_predation():
 	colliders = colisionRadius.get_overlapping_bodies()
 	if colliders != []:
 		for c in colliders:
-			if c.size > self.size and c.type != self.type:
-				c.update_size(c.size + self.size)
-				self.queue_free()
+			if "size" in c:
+				if c.size > self.size and c.type != self.type:
+					c.update_size(c.size+self.size)
+					self.queue_free()
+			elif c.name == "boundary":
+				direction_vector = Vector2(960,540) - self.position
+				current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
+				current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
+				velocity = current_direction*speed
+				velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
+				velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
+				
 
 func handle_forces(_delta):
 	neighbours = attractionRadius.get_overlapping_bodies()
@@ -79,27 +88,24 @@ func handle_forces(_delta):
 		var current_winner = 0
 		var winning_neighbour = null
 		for i in len(neighbours):
-			var neighbour = neighbours[i]
-			var val = GlobalWorld.matrix[self.type][neighbour.type]
-			if abs(val) > abs(current_winner):
-				current_winner = val
-				winning_neighbour = neighbour
-		if winning_neighbour != null:
-			if sign(current_winner) < 0:
-				#run away
-				direction_vector = self.position - winning_neighbour.position
-			else:
-				#come closer
-				direction_vector = winning_neighbour.position - self.position
-			direction_vector = direction_vector.normalized()
-			current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
-			current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
-			velocity = current_direction*speed
-			if abs(velocity.x) > abs(velocity.y):
-				velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
-			else:
+			if "type" in neighbours[i]:
+				var neighbour = neighbours[i]
+				var val = GlobalWorld.matrix[self.type][neighbour.type]
+				if abs(val) > abs(current_winner):
+					current_winner = val
+					winning_neighbour = neighbour
+			if winning_neighbour != null:
+				if sign(current_winner) < 0:
+					#run away
+					direction_vector = self.position - winning_neighbour.position
+				else:
+					#come closer
+					direction_vector = winning_neighbour.position - self.position
+				current_direction.x = lerp(current_direction.x,direction_vector.x,0.1)
+				current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
+				velocity = current_direction*speed
 				velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
-			
+				velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
 		handle_predation()
 
 func update_size(new_size):

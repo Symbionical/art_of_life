@@ -37,6 +37,24 @@ onready var audio_player = $AudioRecord
 onready var process_button = $VBoxContainer/Process
 onready var record_button = $VBoxContainer/Record
 
+func generate_cell():
+	
+	var newCell = cell.instance()
+	newCell.position = Vector2(rand_range(10.0, 1920.0), rand_range(10.0, 1080.0))
+	add_child(newCell)
+	newCell.randomise_genes()
+
+func create_daughter(mother):
+	var daughterCell = cell.instance()
+	daughterCell.speed = mother.speed
+	daughterCell.size = mother.size
+	daughterCell.split_size = daughterCell.size*2
+	daughterCell.type = mother.type
+	daughterCell.modulate = daughterCell.colors[daughterCell.type]
+	daughterCell.velocity = -mother.velocity
+	daughterCell.position = Vector2(mother.position.x + (5*mother.size)*((-1)*sign(mother.velocity.x)), mother.position.y + (5*mother.size)*((-1)*sign(mother.velocity.y)))
+	add_child(daughterCell)
+	daughterCell.update_size(daughterCell.size)
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
