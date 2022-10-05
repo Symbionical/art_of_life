@@ -1,14 +1,13 @@
 extends KinematicBody2D
 
-
 # vars
 var dir
 var pos
-var direction_vector = Vector2(0,0)
+var direction_vector
 var current_direction = Vector2(0,0)
+var velocity
 var neighbours = []
 var colliders = []
-var velocity
 
 var colors2 = [
 	Color("#000000"),
@@ -218,8 +217,8 @@ var split_size = size*2
 onready var screen_size = get_viewport_rect().size
 onready var colisionRadius = $collisions
 onready var attractionRadius = $Area2D 
-onready var color = $Sprite.modulate
 onready var minimum_speed = GlobalWorld.min_speed
+onready var my_life = $Particles2D
 
 func try_reproduction():
 	if size > split_size:
@@ -263,10 +262,13 @@ func handle_predation():
 			if "size" in c:
 				if c.size > self.size and c.type != self.type:
 					c.update_size(c.size + self.size)
+					my_life.get_parent().remove_child(my_life)
+					GlobalWorld.add_child(my_life)
+					GlobalWorld.get_child(my_life.get_index()).process_material.color = colors2[type]
 					self.queue_free()
 			elif c.name == "boundary":
+				#bounce to the center?
 				direction_vector = Vector2(960,540) - self.position
-
 
 func handle_forces(_delta):
 	neighbours = attractionRadius.get_overlapping_bodies()
@@ -280,7 +282,7 @@ func handle_forces(_delta):
 				if abs(val) > abs(current_winner):
 					current_winner = val
 					winning_neighbour = neighbour
-			if winning_neighbour != null:
+			if winning_neighbour != null and winning_neighbour != self:
 				if sign(current_winner) < 0:
 					#run away
 					direction_vector = self.position - winning_neighbour.position
