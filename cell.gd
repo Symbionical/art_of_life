@@ -217,8 +217,10 @@ var split_size = size*2
 onready var screen_size = get_viewport_rect().size
 onready var colisionRadius = $collisions
 onready var attractionRadius = $Area2D 
-onready var minimum_speed = GlobalWorld.min_speed
 onready var my_life = $Particles2D
+onready var world = get_parent()
+onready var min_speed = world.min_speed
+onready var birth_flash = $birth
 
 func try_reproduction():
 	if size > split_size:
@@ -226,7 +228,7 @@ func try_reproduction():
 		self.update_size((split_size/2)+remainder)
 		var daughter_pos = Vector2(self.position.x + (5*self.radius)*((-1)*sign(self.velocity.x)), self.position.y + (5*self.radius)*((-1)*sign(self.velocity.y)))
 		var daughter_rad = sqrt((split_size/2)/PI)
-		GlobalWorld.generate_specific_cell(self.type,self.speed,daughter_rad,self.attraction_mod,-self.velocity,daughter_pos)
+		world.generate_specific_cell(self.type,self.speed,daughter_rad,self.attraction_mod,-self.velocity,daughter_pos)
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -246,9 +248,9 @@ func _physics_process(delta):
 	current_direction.y = lerp(current_direction.y,direction_vector.y,0.1)
 	velocity = current_direction*speed
 	if abs(velocity.x) > abs(velocity.y):
-		velocity.y = max(velocity.y,minimum_speed)*sign(velocity.y)
+		velocity.y = max(velocity.y,min_speed)*sign(velocity.y)
 	else:
-		velocity.x = max(velocity.x,minimum_speed)*sign(velocity.x)
+		velocity.x = max(velocity.x,min_speed)*sign(velocity.x)
 	velocity = move_and_slide(velocity,Vector2(0, 0))
 
 func wrap():
@@ -263,8 +265,8 @@ func handle_predation():
 				if c.size > self.size and c.type != self.type:
 					c.update_size(c.size + self.size)
 					my_life.get_parent().remove_child(my_life)
-					GlobalWorld.add_child(my_life)
-					GlobalWorld.get_child(my_life.get_index()).process_material.color = colors2[type]
+					world.add_child(my_life)
+					world.get_child(my_life.get_index()).process_material.color = Color(colors2[type].r,colors2[type].g,colors2[type].b,0.25)
 					self.queue_free()
 			elif c.name == "boundary":
 				#bounce to the center?
@@ -278,7 +280,7 @@ func handle_forces(_delta):
 		for i in len(neighbours):
 			if "type" in neighbours[i]:
 				var neighbour = neighbours[i]
-				var val = GlobalWorld.matrix[self.type][neighbour.type]
+				var val = world.matrix[self.type][neighbour.type]
 				if abs(val) > abs(current_winner):
 					current_winner = val
 					winning_neighbour = neighbour
