@@ -2,6 +2,7 @@ extends Node2D
 
 var rng = RandomNumberGenerator.new()
 var cell = preload("res://cell.tscn")
+var audio = preload("res://audio.tscn")
 
 var n_cell_types = 10 #note 10 here is the number of possible types/colours. change val if add more options.
 var max_speed = 20
@@ -14,9 +15,9 @@ var min_attr_mod = -0.1 #fraction of radius
 var matrix = []
 var width = 10
 var audio_stream_sample
-var recording
 var spectrum_short_buffer
 var spectrum_long_buffer
+var recording
 var process = false
 
 # AUDIO SHIT
@@ -31,8 +32,10 @@ var w = (TOTAL_WIDTH / VU_COUNT)/2
 var prev_energy = []
 var counter = 0
 var leng = 0
+
 ####
 
+onready var screen_size = get_viewport_rect().size
 onready var audio_player = $AudioRecord
 onready var process_button = $VBoxContainer/Process
 onready var record_button = $VBoxContainer/Record
@@ -73,9 +76,14 @@ func _ready():
 	spectrum_short_buffer = AudioServer.get_bus_effect_instance(idx, 1)
 	spectrum_long_buffer = AudioServer.get_bus_effect_instance(idx, 2)
 
-func _unhandled_input(event:InputEvent) -> void:
-	if event is InputEventMouseButton:
-		generate_random_cell()
+func refresh_audio():
+	audio_player = audio.instance()
+	self.add_child(audio_player)
+	var idx = AudioServer.get_bus_index("Record")
+	audio_stream_sample = AudioServer.get_bus_effect(idx, 0)
+	spectrum_short_buffer = AudioServer.get_bus_effect_instance(idx, 1)
+	spectrum_long_buffer = AudioServer.get_bus_effect_instance(idx, 2)
+	print(audio_stream_sample,spectrum_short_buffer,spectrum_long_buffer)
 
 func generate_random_cell():
 	rng.seed = hash("Godot")
@@ -107,7 +115,12 @@ func _physics_process(_delta):
 			process = false
 			counter = 0
 			voice_to_genes()
-
+		
+func _process(delta):
+	if Input.is_action_just_pressed("generate"):
+		generate_random_cell()
+	
+	
 func _on_Record_pressed():
 	if audio_stream_sample.is_recording_active():
 		recording = audio_stream_sample.get_recording()
@@ -148,32 +161,36 @@ func voice_to_genes():
 			prev_hz = hz
 			var frac = fposmod(((energy/total_energy)*n_attributes),1)
 			#these are the relational attributes
-			if i < 10:
-				matrix[0][i] = (frac*2)-1
-			elif i == 10:
+			if i == 0:
 				type = floor(frac*n_cell_types) 
+			elif i < 11:
+				matrix[type][i-1] = (frac*2)-1
 			elif i == 11:
 				speed = min_speed + ((max_speed-min_speed)*frac)
 			elif i == 12:
 				radius = min_rad + ((max_rad-min_rad)*frac)
 			elif i == 13:
 				attraction_mod = min_attr_mod + ((max_attr_mod-min_attr_mod)*frac)
-		generate_specific_cell(type,speed,radius,attraction_mod,Vector2(0,0),Vector2(1000/2, 500/2))
+		generate_specific_cell(type,speed,radius,attraction_mod,Vector2(0,0),Vector2(rand_range(0, screen_size.x), rand_range(0,screen_size.y)))
 	else: 
 		generate_random_cell() 
 		print("Warning: couldn't generate a mutant cell. Nothing was in the recording buffer. Maybe microphone issue? Generating random cell instead...")
+	
+	audio_player.queue_free()
+	refresh_audio()
 
 
 func _draw():
 	#warning-ignore:integer_division
-	var prev_hz = 0
-	for i in range(VU_COUNT):
-		var hz = i * FREQ_MAX / VU_COUNT
-		var energy = get_freq_range_energy(spectrum_short_buffer,prev_hz,hz)
-		if energy < prev_energy[i]:
-			energy = clamp(prev_energy[i] - 0.01, 0, MAX_BAR_HEIGHT)
-		prev_energy[i] = energy
-		var height = energy * MAX_BAR_HEIGHT 
-		#rect2 takes in x,y,width,height
-		draw_rect(Rect2(LEFT_X - (0.5*w) + (2*w * i), BOTTOM_Y - height, w, height), Color(1,1,1)) 
-		prev_hz = hz
+	if process == true:
+		var prev_hz = 0
+		for i in range(VU_COUNT):
+			var hz = i * FREQ_MAX / VU_COUNT
+			var energy = get_freq_range_energy(spectrum_short_buffer,prev_hz,hz)
+			if energy < prev_energy[i]:
+				energy = clamp(prev_energy[i] - 0.01, 0, MAX_BAR_HEIGHT)
+			prev_energy[i] = energy
+			var height = energy * MAX_BAR_HEIGHT 
+			#rect2 takes in x,y,width,height
+			draw_rect(Rect2(LEFT_X - (0.5*w) + (2*w * i), BOTTOM_Y - height, w, height), Color(1,1,1)) 
+			prev_hz = hz

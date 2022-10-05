@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=2]
+
+[sub_resource type="AudioStreamMicrophone" id=1]
+
+[node name="AudioRecord" type="AudioStreamPlayer"]
+stream = SubResource( 1 )
+autoplay = true
+bus = "Record"

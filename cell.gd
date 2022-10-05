@@ -31,10 +31,10 @@ var radius = 0.1
 var size = PI*pow(radius,2)
 var split_size = size*2
 
+onready var screen_size = get_viewport_rect().size
 onready var colisionRadius = $collisions
 onready var attractionRadius = $Area2D 
 onready var color = $Sprite.modulate
-onready var screen_size = get_viewport_rect().size
 onready var minimum_speed = GlobalWorld.min_speed
 
 func try_reproduction():
